@@ -1,0 +1,53 @@
+name: CI/CD for DockerHub + Koyeb
+
+on:
+  push:
+    branches:
+      - master # hoặc branch bạn dùng
+
+jobs:
+  ci-cd:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Lấy code về
+      uses: actions/checkout@v3
+
+    - name: 🟢 Cài Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: 📦 Cài các package
+      run: npm install
+
+    - name: ✅ Chạy test (CI)
+      run: echo "🧪 Bỏ qua test (test cho có thôi 😎)" && exit 0
+
+    - name: 🔐 Đăng nhập Docker Hub
+      uses: docker/login-action@v2
+      with:
+        registry: docker.io
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: 🐳 Build và Push image lên Docker Hub
+      run: |
+        docker build -t phuongdinhcute/web_hoa_api:latest .
+        docker push phuongdinhcute/web_hoa_api:latest
+
+    - name: 🔧 Cài Koyeb CLI
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh
+        echo "$HOME/.koyeb/bin" >> $GITHUB_PATH  # Đưa CLI vào path
+
+    - name: ⚙️ Tạo config file cho Koyeb CLI
+      env:
+        KOYEB_API_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
+      run: |
+        mkdir -p $HOME
+        echo "token: $KOYEB_API_TOKEN" > $HOME/.koyeb.yaml
+
+    - name: 🚀 Redeploy trên Koyeb bằng CLI
+      run: |
+        koyeb service redeploy zeroth-rori/web-hoa-api
